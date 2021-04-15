@@ -1,113 +1,163 @@
+import 'dart:async';
+import 'dart:math';
+import 'dart:typed_data';
+
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
+import 'package:flutter_math/flutter_math.dart';
 
 void main() {
   runApp(MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Flutter Demo',
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // Try running your application with "flutter run". You'll see the
-        // application has a blue toolbar. Then, without quitting the app, try
-        // changing the primarySwatch below to Colors.green and then invoke
-        // "hot reload" (press "r" in the console where you ran "flutter run",
-        // or simply save your changes to "hot reload" in a Flutter IDE).
-        // Notice that the counter didn't reset back to zero; the application
-        // is not restarted.
         primarySwatch: Colors.blue,
       ),
-      home: MyHomePage(title: 'Flutter Demo Home Page'),
+      home: MyHomePage(),
     );
   }
 }
 
 class MyHomePage extends StatefulWidget {
-  MyHomePage({Key key, this.title}) : super(key: key);
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
-
+  //r'\hphantom{0}'
   @override
-  _MyHomePageState createState() => _MyHomePageState();
+  State<StatefulWidget> createState() {
+    final rnd = Random();
+    final exercises = () sync* {
+      while (true) {
+        final a = rnd.nextInt(998) + 1;
+        final b = rnd.nextInt(98) + 1;
+        yield '$a \\times $b =';
+      }
+    }()
+        .take(40)
+        .toList()
+        .asMap()
+        .map((key, value) => MapEntry(GlobalKey(), value));
+    return _MyHomePageState(exercises);
+  }
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+  _MyHomePageState(this._exercises);
 
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
-  }
+  Map<GlobalKey, String> _exercises;
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
     return Scaffold(
-      appBar: AppBar(
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
+        body: SizedBox.expand(
+      child: Row(
+        children: [
+          SizedBox(
+            width: 0,
+            child: SingleChildScrollView(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Column(
+                  children: _exercises.entries
+                      .map((e) => Row(
+                            children: [
+                              Exercise(key: e.key, expression: e.value),
+                            ],
+                          ))
+                      .toList(),
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: PdfPreview(
+              build: _generatePdf,
+            ),
+          ),
+        ],
       ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Invoke "debug painting" (press "p" in the console, choose the
-          // "Toggle Debug Paint" action from the Flutter Inspector in Android
-          // Studio, or the "Toggle Debug Paint" command in Visual Studio Code)
-          // to see the wireframe for each widget.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Text(
-              'You have pushed the button this many times:',
-            ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headline4,
-            ),
-          ],
+    ));
+  }
+
+  FutureOr<Uint8List> _generatePdf(PdfPageFormat format) async {
+    final doc = pw.Document();
+    final x = await Future.wait(_exercises.keys
+        .map((e) => WidgetWraper.fromKey(key: e, pixelRatio: 1)));
+    final pageMargin = const pw.EdgeInsets.all(1 * PdfPageFormat.cm)
+        .copyWith(top: 2 * PdfPageFormat.cm);
+    doc.addPage(pw.MultiPage(
+        pageFormat: format,
+        margin: pageMargin,
+        build: (pw.Context context) {
+          return [
+            pw.Wrap(
+                children: List.generate(x.length, (index) {
+              final img = x[index].buildImage(context);
+              return pw.SizedBox(
+                  width: (format.width - pageMargin.horizontal) / 4,
+                  height: 2.6 * PdfPageFormat.cm,
+                  child: pw.Column(children: [
+                    pw.Row(children: [
+                      pw.Image(pw.ImageProxy(img), width: img.width / 2)
+                    ])
+                  ]));
+            }))
+          ];
+        }));
+    return doc.save();
+  }
+}
+
+pw.Widget table(x) {
+  return pw.Table(
+      columnWidths: {0: pw.IntrinsicColumnWidth(), 1: pw.FlexColumnWidth()},
+      children: x
+          .asMap()
+          .entries
+          .map((e) => pw.TableRow(children: [
+                pw.Padding(
+                    padding: pw.EdgeInsets.only(right: 1 * PdfPageFormat.mm),
+                    child: pw.Text("${e.key + 1})",
+                        style: pw.TextStyle(fontSize: 6))),
+                pw.Padding(
+                    padding: pw.EdgeInsets.only(top: 0, bottom: 0),
+                    child: pw.Image(e.value))
+              ]))
+          .toList());
+}
+
+class Exercise extends StatefulWidget {
+  Exercise({Key? key, required this.expression}) : super(key: key);
+
+  final String expression;
+
+  @override
+  State<StatefulWidget> createState() {
+    return _ExerciseState();
+  }
+}
+
+class _ExerciseState extends State<Exercise> {
+  final _key = GlobalKey();
+
+  @override
+  Widget build(BuildContext context) {
+    return RepaintBoundary(
+      key: _key,
+      child: Container(
+        margin: EdgeInsets.only(top: 1, bottom: 1),
+        child: Math.tex(
+          widget.expression,
+          mathStyle: MathStyle.display,
+          textScaleFactor: 1.2,
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
     );
   }
 }
