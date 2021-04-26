@@ -26,6 +26,8 @@ dependencies:
   pdf: ^3.1.0
   printing: ^5.0.4
   flutter_math: ^0.3.0-nullsafety.1
+  flutter_spinbox: ^0.4.0
+  quiver: ^3.0.1
 
 
   # The following adds the Cupertino Icons font to your application.
