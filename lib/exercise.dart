@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_math/flutter_math.dart';
+import 'package:flutter_math_fork/flutter_math.dart';
 
 class Exercise extends StatefulWidget {
   Exercise({Key? key, required this.expression}) : super(key: key);
