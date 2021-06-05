@@ -68,18 +68,20 @@ class _MyHomePageState extends State<MyHomePage> {
     try {
       final deduplicatedExercises = <String>[];
       generators.forEach((gen) {
-        final previousLength = deduplicatedExercises.length;
+        final generatorExercises = <String>[];
         final amount = configuration.exercises / generators.length;
         var retries = 0;
-        while (deduplicatedExercises.length < previousLength + amount) {
+        while (generatorExercises.length < amount) {
           final el = gen.generator(rnd).first;
-          if (deduplicatedExercises.contains(el)) {
-            if (++retries > 100) break;
-            continue;
+          if (deduplicatedExercises.contains(el) ||
+              generatorExercises.contains(el)) {
+            if (++retries < 100) continue;
           }
           retries = 0;
-          deduplicatedExercises.add(el);
+          generatorExercises.add(el);
         }
+        generatorExercises.shuffle(rnd);
+        deduplicatedExercises.addAll(generatorExercises);
       });
       exercises = deduplicatedExercises
           .asMap()
