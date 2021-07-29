@@ -290,4 +290,17 @@ var configs = [
                 p(rnd, .3, () => multiplicand < 50) &&
                 p(rnd, .01, () => multiplier < 6),
           )),
+  ExerciseConfig(
+      "Multiplicação em linha de dezena por unidade",
+      RangeValues(2.4, 2.7),
+      (rnd) => multInline(
+            rnd,
+            multiplicand: NumberConstraint.between(min: 11, max: 100),
+            multiplier: NumberConstraint.between(min: 2, max: 10),
+            filter: (rnd, multiplicand, multiplier) =>
+                multiplicand % 10 != 0 &&
+                p(rnd, .1, () => multiplicand % 10 == 1) &&
+                p(rnd, .3, () => multiplicand < 50) &&
+                p(rnd, .01, () => multiplier < 6),
+          )),
 ];
